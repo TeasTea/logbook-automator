@@ -67,7 +67,7 @@ with st.sidebar:
     if os.path.exists(QR_FILE):
         st.image(QR_FILE, caption="Scan to Pay via DuitNow", use_container_width=True)
         
-    st.markdown("Send your receipt screenshot to **[Your Contact]** to receive your Access Passcode.")
+    st.markdown("Send your receipt screenshot to **+60135636986** to receive your Access Passcode.")
     st.divider()
     
     st.header("🔑 Gatekeeper")
