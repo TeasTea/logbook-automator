@@ -62,7 +62,7 @@ def update_ledger(df):
 # ── SIDEBAR PART 1: GATEKEEPER ───────────────────────────────────────────────
 with st.sidebar:
     st.header("🎟️ Get Access")
-    st.markdown("Want 40 log generations? Scan & pay **RM8**.")
+    st.markdown("Want 50 log generations? Scan & pay **RM10**.")
     
     if os.path.exists(QR_FILE):
         st.image(QR_FILE, caption="Scan to Pay via DuitNow", use_container_width=True)
