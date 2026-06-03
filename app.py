@@ -75,8 +75,8 @@ div[data-testid="stForm"] input[type="text"] {
     height: 2.75rem !important;
 }
 div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] > button {
-    border-radius: 0 10px 10px 0 !important;
-    margin-top: 0 !important;
+    border-radius: 10px !important;
+    margin-top: 0.5rem !important;
     height: 2.75rem !important;
     width: auto !important;
     padding: 0 1.4rem !important;
