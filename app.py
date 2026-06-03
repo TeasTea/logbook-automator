@@ -164,3 +164,8 @@ with st.sidebar:
             st.divider()
             st.caption("Copy raw text below:")
             st.code(msg, language=None)
+            # --- FEEDBACK SECTION ---
+            st.sidebar.markdown("---")
+            st.sidebar.markdown("### 🗣️ Got Feedback?")
+            st.sidebar.markdown("Help improve the app or report bugs! Takes 30 seconds.")
+            st.sidebar.link_button("📝 Give Feedback", "https://docs.google.com/forms/d/e/1FAIpQLSfTHvUEbkJraHZseXpIfnZF55T21O7bYcREMxUix2iwbJ_87Q/viewform?usp=dialog")
