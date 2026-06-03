@@ -56,7 +56,29 @@ textarea:focus, .stTextArea textarea:focus { border-color: rgba(99,102,241,0.5) 
 .output-body { font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 300; color: #d0d0de; line-height: 1.75; white-space: pre-wrap; }
 .error-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 1rem 1.3rem; color: #fca5a5; font-family: 'DM Mono', monospace; font-size: 0.82rem; margin-top: 1rem; }
 .refine-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #6366f1; padding-top: 1.2rem; border-top: 1px solid rgba(99,102,241,0.18); margin-bottom: 0.6rem; display: block; }
-.refine-note { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #4b5563; margin-top: 0.5rem; }
+.refine-note { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #4b5563; margin-top: 0.6rem; }
+
+/* ── Search-bar fusion: zero gap, fused input + button ── */
+div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"]) {
+    gap: 0 !important;
+    align-items: stretch !important;
+}
+div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
+    div[data-testid="column"]:first-child input {
+    border-radius: 10px 0 0 10px !important;
+    border-right: none !important;
+}
+div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
+    div[data-testid="column"]:first-child > div {
+    margin-bottom: 0 !important;
+}
+div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
+    div[data-testid="column"]:last-child .stButton > button {
+    border-radius: 0 10px 10px 0 !important;
+    margin-top: 0 !important;
+    height: 100% !important;
+    white-space: nowrap !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,7 +195,7 @@ if st.session_state.current_logbook:
         unsafe_allow_html=True,
     )
 
-    refine_col, btn_col = st.columns([4, 1], gap="small")
+    refine_col, btn_col = st.columns([5, 1], gap="small")
     with refine_col:
         refine_instruction = st.text_input(
             "refine_input",
