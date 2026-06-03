@@ -167,7 +167,6 @@ if st.session_state.current_logbook:
         f'<div class="output-wrapper"><div class="output-body">{logbook_text}</div></div>',
         unsafe_allow_html=True,
     )
-    st.code(logbook_text, language=None)
 
     # ── REFINE SECTION ────────────────────────────────────────────────────
     st.markdown('<div class="refine-wrapper">', unsafe_allow_html=True)
