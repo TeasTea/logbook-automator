@@ -154,20 +154,6 @@ st.markdown('<div style="text-align:center; margin-top:3rem; font-size:0.7rem; c
 with st.sidebar:
     st.divider()
     st.header("📜 Session History")
-    if st.button("Clear History"):
-        st.session_state.messages = []
-        st.rerun()
-    for idx, msg in enumerate(reversed(st.session_state.messages)):
-        log_number = len(st.session_state.messages) - idx
-        with st.expander(f"Log {log_number}"):
-            st.markdown(msg)
-            st.divider()
-            st.caption("Copy raw text below:")
-            st.code(msg, language=None)
-# ── SIDEBAR PART 2: HISTORY ──────────────────────────────────────────────────
-with st.sidebar:
-    st.divider()
-    st.header("📜 Session History")
     
     if st.button("Clear History"):
         st.session_state.messages = []
