@@ -3,14 +3,14 @@ import anthropic
 import os
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
- 
+
 # ── CONFIGURATION ────────────────────────────────────────────────────────────
 MODEL = "claude-haiku-4-5"
 LOGO_FILE = "Gemini_Generated_Image_83l7jt83l7jt83l7.png"
 QR_FILE = "qr_code.jpeg"
- 
+
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1z_K3DGC9BbGMNNSDLzJjFzliHLzH2vA1ndX2VjIQnzI/edit?usp=sharing"
- 
+
 # ── Page configuration ───────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Internship Logbook Automator",
@@ -18,7 +18,7 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded",
 )
- 
+
 # ── SESSION STATE INITIALISATION ─────────────────────────────────────────────
 # messages      : sidebar history log
 # current_logbook  : the live draft displayed on screen (Generate overwrites, Refine updates)
@@ -30,7 +30,7 @@ if "current_logbook"  not in st.session_state: st.session_state.current_logbook 
 if "original_notes"   not in st.session_state: st.session_state.original_notes   = ""
 if "active_passcode"  not in st.session_state: st.session_state.active_passcode  = ""
 if "active_tone"      not in st.session_state: st.session_state.active_tone      = ""
- 
+
 # ── Custom CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -55,22 +55,21 @@ textarea:focus, .stTextArea textarea:focus { border-color: rgba(99,102,241,0.5) 
 .output-wrapper { background: rgba(255,255,255,0.03); border: 1px solid rgba(99,102,241,0.2); border-radius: 16px; padding: 1.8rem; margin-top: 1.6rem; }
 .output-body { font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 300; color: #d0d0de; line-height: 1.75; white-space: pre-wrap; }
 .error-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 1rem 1.3rem; color: #fca5a5; font-family: 'DM Mono', monospace; font-size: 0.82rem; margin-top: 1rem; }
-.refine-wrapper { background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.18); border-radius: 14px; padding: 1.2rem 1.4rem; margin-top: 1.4rem; }
-.refine-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #6366f1; margin-bottom: 0.6rem; display: block; }
+.refine-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #6366f1; padding-top: 1.2rem; border-top: 1px solid rgba(99,102,241,0.18); margin-bottom: 0.6rem; display: block; }
 .refine-note { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #4b5563; margin-top: 0.5rem; }
 </style>
 """, unsafe_allow_html=True)
- 
+
 # ── CLOUD DATABASE CONNECTION ────────────────────────────────────────────────
 conn = st.connection("gsheets", type=GSheetsConnection)
- 
+
 def get_ledger():
     # ttl=0 ensures we don't read cached data; always checks the live sheet
     return conn.read(spreadsheet=SPREADSHEET_URL, ttl=0)
- 
+
 def update_ledger(df):
     conn.update(spreadsheet=SPREADSHEET_URL, data=df)
- 
+
 # ── SIDEBAR PART 1: GATEKEEPER ───────────────────────────────────────────────
 with st.sidebar:
     st.header("🎟️ Get Access")
@@ -84,7 +83,7 @@ with st.sidebar:
     
     st.header("🔑 Gatekeeper")
     user_passcode_input = st.text_input("Enter Access Passcode:", type="password")
- 
+
 # ── MAIN APP UI ──────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="logbook-header">
@@ -93,10 +92,10 @@ st.markdown("""
     <p>Turn messy daily notes into polished academic logbook entries — instantly.</p>
 </div>
 """, unsafe_allow_html=True)
- 
+
 raw_notes = st.text_area("Drop your messy daily notes here", height=160)
 tone = st.selectbox("Tone", options=["Highly Technical", "Management / Soft Skills", "General IT"], index=0)
- 
+
 # ── GENERATE BUTTON ───────────────────────────────────────────────────────────
 if st.button("✦  Generate Logbook Entry", type="primary"):
     if not raw_notes.strip():
@@ -105,10 +104,10 @@ if st.button("✦  Generate Logbook Entry", type="primary"):
     if not user_passcode_input.strip():
         st.markdown('<div class="error-box">⚠ Please enter your Access Passcode in the sidebar.</div>', unsafe_allow_html=True)
         st.stop()
- 
+
     user_passcode = user_passcode_input.strip().upper()
     api_key = st.secrets.get("ANTHROPIC_API_KEY")
- 
+
     # 1. Validate passcode against Google Sheets
     with st.spinner("Connecting to Google Cloud Database..."):
         try:
@@ -127,7 +126,7 @@ if st.button("✦  Generate Logbook Entry", type="primary"):
         except Exception as e:
             st.markdown(f'<div class="error-box">⚠ Cloud Connection Error: {e}</div>', unsafe_allow_html=True)
             st.stop()
- 
+
     # 2. Call Claude API
     with st.spinner("Engineering your logbook..."):
         try:
@@ -138,40 +137,42 @@ if st.button("✦  Generate Logbook Entry", type="primary"):
                 messages=[{"role": "user", "content": raw_notes}]
             )
             generated_log = response.content[0].text
- 
+
             # 3. Deduct token ONLY after confirmed API success
             df.at[user_idx, 'Tokens'] = current_balance - 1
             update_ledger(df)
             tokens_left = current_balance - 1
- 
+
             # 4. Persist state for the Refine feature
             st.session_state.current_logbook = generated_log
             st.session_state.original_notes  = raw_notes
             st.session_state.active_passcode = user_passcode
             st.session_state.active_tone     = tone
- 
+
             # 5. Add to sidebar history
             st.session_state.messages.append(generated_log)
- 
+
             st.success(f"Success! {tokens_left} tokens remaining on passcode {user_passcode}.")
- 
+
         except Exception as e:
             st.markdown(f'<div class="error-box">⚠ API Error: {e}</div>', unsafe_allow_html=True)
             st.stop()
- 
+
 # ── DISPLAY CURRENT LOGBOOK (persists across all reruns) ─────────────────────
 if st.session_state.current_logbook:
     logbook_text = st.session_state.current_logbook
- 
+
     st.markdown(
         f'<div class="output-wrapper"><div class="output-body">{logbook_text}</div></div>',
         unsafe_allow_html=True,
     )
- 
+
     # ── REFINE SECTION ────────────────────────────────────────────────────
-    st.markdown('<div class="refine-wrapper">', unsafe_allow_html=True)
-    st.markdown('<span class="refine-label">✦ Refine This Entry</span>', unsafe_allow_html=True)
- 
+    st.markdown(
+        '<div class="refine-label" style="margin-top:1.4rem;">✦ Refine This Entry</div>',
+        unsafe_allow_html=True,
+    )
+
     refine_col, btn_col = st.columns([4, 1], gap="small")
     with refine_col:
         refine_instruction = st.text_input(
@@ -182,13 +183,12 @@ if st.session_state.current_logbook:
         )
     with btn_col:
         refine_clicked = st.button("Refine Output", key="refine_btn")
- 
+
     st.markdown(
         '<p class="refine-note">💡 Refining uses no additional tokens.</p>',
         unsafe_allow_html=True,
     )
-    st.markdown('</div>', unsafe_allow_html=True)
- 
+
     # ── REFINE LOGIC ──────────────────────────────────────────────────────
     if refine_clicked:
         if not refine_instruction.strip():
@@ -201,7 +201,7 @@ if st.session_state.current_logbook:
             with st.spinner("Applying your refinements…"):
                 try:
                     client = anthropic.Anthropic(api_key=api_key)
- 
+
                     # Build a context-rich prompt: original notes + current draft + instruction
                     refine_system = (
                         "You are an expert technical writer assisting with an internship logbook. "
@@ -212,34 +212,34 @@ if st.session_state.current_logbook:
                         "Apply ONLY the requested changes. Do not invent new tasks or details "
                         "not present in the original notes. Return the full refined logbook entry."
                     )
- 
+
                     refine_user_message = (
                         f"ORIGINAL ROUGH NOTES:\n{st.session_state.original_notes}\n\n"
                         f"CURRENT LOGBOOK DRAFT:\n{st.session_state.current_logbook}\n\n"
                         f"REFINEMENT INSTRUCTION:\n{refine_instruction.strip()}"
                     )
- 
+
                     refine_response = client.messages.create(
                         model=MODEL,
                         max_tokens=1024,
                         system=refine_system,
                         messages=[{"role": "user", "content": refine_user_message}]
                     )
- 
+
                     refined_log = refine_response.content[0].text
- 
+
                     # Overwrite session state — no token deduction for refinements
                     st.session_state.current_logbook = refined_log
- 
+
                     # Update sidebar history: replace last entry with refined version
                     if st.session_state.messages:
                         st.session_state.messages[-1] = refined_log
                     else:
                         st.session_state.messages.append(refined_log)
- 
+
                     st.success("Entry refined! No tokens were deducted.")
                     st.rerun()   # Re-render page so updated logbook displays immediately
- 
+
                 except anthropic.RateLimitError:
                     st.markdown(
                         '<div class="error-box">⚠️ Server busy right now. Wait 5 seconds and try again.</div>',
@@ -250,9 +250,9 @@ if st.session_state.current_logbook:
                         f'<div class="error-box">⚠ Refinement error: {e}</div>',
                         unsafe_allow_html=True,
                     )
- 
+
 st.markdown('<div style="text-align:center; margin-top:3rem; font-size:0.7rem; color:#6b7280;">POWERED BY CLAUDE HAIKU · CLOUD DATABASE ACTIVE</div>', unsafe_allow_html=True)
- 
+
 # ── SIDEBAR PART 2: HISTORY ──────────────────────────────────────────────────
 with st.sidebar:
     st.divider()
