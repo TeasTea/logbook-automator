@@ -164,8 +164,25 @@ with st.sidebar:
             st.divider()
             st.caption("Copy raw text below:")
             st.code(msg, language=None)
-            # --- FEEDBACK SECTION ---
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### 🗣️ Got Feedback?")
-            st.sidebar.markdown("Help improve the app or report bugs! Takes 30 seconds.")
-            st.sidebar.link_button("📝 Give Feedback", "https://docs.google.com/forms/d/e/1FAIpQLSfTHvUEbkJraHZseXpIfnZF55T21O7bYcREMxUix2iwbJ_87Q/viewform?usp=dialog")
+# ── SIDEBAR PART 2: HISTORY ──────────────────────────────────────────────────
+with st.sidebar:
+    st.divider()
+    st.header("📜 Session History")
+    
+    if st.button("Clear History"):
+        st.session_state.messages = []
+        st.rerun()
+        
+    for idx, msg in enumerate(reversed(st.session_state.messages)):
+        log_number = len(st.session_state.messages) - idx
+        with st.expander(f"Log {log_number}"):
+            st.markdown(msg)
+            st.divider()
+            st.caption("Copy raw text below:")
+            st.code(msg, language=None)
+            
+    # --- FEEDBACK SECTION ---
+    st.markdown("---")
+    st.markdown("### 🗣️ Got Feedback?")
+    st.markdown("Help improve the app or report bugs! Takes 30 seconds.")
+    st.link_button("📝 Give Feedback", "https://docs.google.com/forms/d/e/1FAIpQLSfTHvUEbkJraHZseXpIfnZF55T21O7bYcREMxUix2iwbJ_87Q/viewform?usp=dialog")
