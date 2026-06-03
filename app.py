@@ -58,25 +58,28 @@ textarea:focus, .stTextArea textarea:focus { border-color: rgba(99,102,241,0.5) 
 .refine-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #6366f1; padding-top: 1.2rem; border-top: 1px solid rgba(99,102,241,0.18); margin-bottom: 0.6rem; display: block; }
 .refine-note { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #4b5563; margin-top: 0.6rem; }
 
-/* ── Search-bar fusion: zero gap, fused input + button ── */
-div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"]) {
+/* ── Search-bar form: fuse input + submit button into one pill ── */
+div[data-testid="stForm"] {
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+div[data-testid="stForm"] > div:first-child {
+    display: flex !important;
     gap: 0 !important;
     align-items: stretch !important;
 }
-div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
-    div[data-testid="column"]:first-child input {
+div[data-testid="stForm"] input[type="text"] {
     border-radius: 10px 0 0 10px !important;
     border-right: none !important;
+    height: 2.75rem !important;
 }
-div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
-    div[data-testid="column"]:first-child > div {
-    margin-bottom: 0 !important;
-}
-div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"] input[aria-label="refine_input"])
-    div[data-testid="column"]:last-child .stButton > button {
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] > button {
     border-radius: 0 10px 10px 0 !important;
     margin-top: 0 !important;
-    height: 100% !important;
+    height: 2.75rem !important;
+    width: auto !important;
+    padding: 0 1.4rem !important;
     white-space: nowrap !important;
 }
 </style>
@@ -195,16 +198,14 @@ if st.session_state.current_logbook:
         unsafe_allow_html=True,
     )
 
-    refine_col, btn_col = st.columns([5, 1], gap="small")
-    with refine_col:
+    with st.form(key="refine_form", clear_on_submit=False):
         refine_instruction = st.text_input(
             "refine_input",
             placeholder="e.g. 'Make it shorter', 'Add a point about the database'",
             label_visibility="collapsed",
             key="refine_input",
         )
-    with btn_col:
-        refine_clicked = st.button("Refine Output", key="refine_btn")
+        refine_clicked = st.form_submit_button("✦ Refine Output")
 
     st.markdown(
         '<p class="refine-note">💡 Refining uses no additional tokens.</p>',
