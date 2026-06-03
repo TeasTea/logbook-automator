@@ -19,8 +19,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# ── SESSION STATE INITIALISATION ─────────────────────────────────────────────
+# messages      : sidebar history log
+# current_logbook  : the live draft displayed on screen (Generate overwrites, Refine updates)
+# original_notes   : the raw notes from the Generate step, passed into every Refine call
+# active_passcode  : passcode used during Generate, surfaced in success banners
+# active_tone      : tone selected during Generate, carried into Refine calls
+if "messages"         not in st.session_state: st.session_state.messages         = []
+if "current_logbook"  not in st.session_state: st.session_state.current_logbook  = None
+if "original_notes"   not in st.session_state: st.session_state.original_notes   = ""
+if "active_passcode"  not in st.session_state: st.session_state.active_passcode  = ""
+if "active_tone"      not in st.session_state: st.session_state.active_tone      = ""
 
 # ── Custom CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -46,6 +55,9 @@ textarea:focus, .stTextArea textarea:focus { border-color: rgba(99,102,241,0.5) 
 .output-wrapper { background: rgba(255,255,255,0.03); border: 1px solid rgba(99,102,241,0.2); border-radius: 16px; padding: 1.8rem; margin-top: 1.6rem; }
 .output-body { font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 300; color: #d0d0de; line-height: 1.75; white-space: pre-wrap; }
 .error-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 1rem 1.3rem; color: #fca5a5; font-family: 'DM Mono', monospace; font-size: 0.82rem; margin-top: 1rem; }
+.refine-wrapper { background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.18); border-radius: 14px; padding: 1.2rem 1.4rem; margin-top: 1.4rem; }
+.refine-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #6366f1; margin-bottom: 0.6rem; display: block; }
+.refine-note { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #4b5563; margin-top: 0.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -85,7 +97,7 @@ st.markdown("""
 raw_notes = st.text_area("Drop your messy daily notes here", height=160)
 tone = st.selectbox("Tone", options=["Highly Technical", "Management / Soft Skills", "General IT"], index=0)
 
-# ── GENERATION & CLOUD LOGIC ──────────────────────────────────────────────────
+# ── GENERATE BUTTON ───────────────────────────────────────────────────────────
 if st.button("✦  Generate Logbook Entry", type="primary"):
     if not raw_notes.strip():
         st.markdown('<div class="error-box">⚠ Please enter some notes first.</div>', unsafe_allow_html=True)
@@ -97,56 +109,148 @@ if st.button("✦  Generate Logbook Entry", type="primary"):
     user_passcode = user_passcode_input.strip().upper()
     api_key = st.secrets.get("ANTHROPIC_API_KEY")
 
+    # 1. Validate passcode against Google Sheets
     with st.spinner("Connecting to Google Cloud Database..."):
         try:
             df = get_ledger()
-            # Ensure columns exist
             if 'Passcode' not in df.columns or 'Tokens' not in df.columns:
                 st.markdown('<div class="error-box">⚠ Database configuration error. Columns missing.</div>', unsafe_allow_html=True)
                 st.stop()
-
-            # Check if passcode exists
             if user_passcode not in df['Passcode'].values:
                 st.markdown('<div class="error-box">⚠ Invalid passcode. Scan the QR code to buy a token pack.</div>', unsafe_allow_html=True)
                 st.stop()
-
-            # Get user's row index and balance
             user_idx = df.index[df['Passcode'] == user_passcode][0]
             current_balance = int(df.at[user_idx, 'Tokens'])
-
             if current_balance <= 0:
                 st.markdown('<div class="error-box">⚠ This passcode has run out of tokens. Please purchase a top-up.</div>', unsafe_allow_html=True)
                 st.stop()
-
         except Exception as e:
             st.markdown(f'<div class="error-box">⚠ Cloud Connection Error: {e}</div>', unsafe_allow_html=True)
             st.stop()
 
-    # 2. Execute API Call
+    # 2. Call Claude API
     with st.spinner("Engineering your logbook..."):
         try:
             client = anthropic.Anthropic(api_key=api_key)
             system_prompt = f"You are an expert technical writer. Convert the following rough notes into a professional internship logbook entry. The tone should be {tone}. Use strict bullet points. Structure with DATE, OBJECTIVES, ACTIVITIES PERFORMED, and REFLECTION. Do not invent tasks."
-            
             response = client.messages.create(
                 model=MODEL, max_tokens=1024, system=system_prompt,
                 messages=[{"role": "user", "content": raw_notes}]
             )
             generated_log = response.content[0].text
-            
-            # 3. Post-API Cloud Deduction
+
+            # 3. Deduct token ONLY after confirmed API success
             df.at[user_idx, 'Tokens'] = current_balance - 1
             update_ledger(df)
             tokens_left = current_balance - 1
-            
-            # 4. Display Results
+
+            # 4. Persist state for the Refine feature
+            st.session_state.current_logbook = generated_log
+            st.session_state.original_notes  = raw_notes
+            st.session_state.active_passcode = user_passcode
+            st.session_state.active_tone     = tone
+
+            # 5. Add to sidebar history
             st.session_state.messages.append(generated_log)
+
             st.success(f"Success! {tokens_left} tokens remaining on passcode {user_passcode}.")
-            st.markdown(f'<div class="output-wrapper"><div class="output-body">{generated_log}</div></div>', unsafe_allow_html=True)
-            st.code(generated_log, language=None)
-            
+
         except Exception as e:
             st.markdown(f'<div class="error-box">⚠ API Error: {e}</div>', unsafe_allow_html=True)
+            st.stop()
+
+# ── DISPLAY CURRENT LOGBOOK (persists across all reruns) ─────────────────────
+if st.session_state.current_logbook:
+    logbook_text = st.session_state.current_logbook
+
+    st.markdown(
+        f'<div class="output-wrapper"><div class="output-body">{logbook_text}</div></div>',
+        unsafe_allow_html=True,
+    )
+    st.code(logbook_text, language=None)
+
+    # ── REFINE SECTION ────────────────────────────────────────────────────
+    st.markdown('<div class="refine-wrapper">', unsafe_allow_html=True)
+    st.markdown('<span class="refine-label">✦ Refine This Entry</span>', unsafe_allow_html=True)
+
+    refine_col, btn_col = st.columns([4, 1], gap="small")
+    with refine_col:
+        refine_instruction = st.text_input(
+            "refine_input",
+            placeholder="e.g. 'Make it shorter', 'Add a point about the database'",
+            label_visibility="collapsed",
+            key="refine_input",
+        )
+    with btn_col:
+        refine_clicked = st.button("Refine Output", key="refine_btn")
+
+    st.markdown(
+        '<p class="refine-note">💡 Refining uses no additional tokens.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── REFINE LOGIC ──────────────────────────────────────────────────────
+    if refine_clicked:
+        if not refine_instruction.strip():
+            st.markdown(
+                '<div class="error-box">⚠ Please describe what you want changed before clicking Refine.</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            api_key = st.secrets.get("ANTHROPIC_API_KEY")
+            with st.spinner("Applying your refinements…"):
+                try:
+                    client = anthropic.Anthropic(api_key=api_key)
+
+                    # Build a context-rich prompt: original notes + current draft + instruction
+                    refine_system = (
+                        "You are an expert technical writer assisting with an internship logbook. "
+                        "The user will give you: (1) their original rough notes, "
+                        "(2) a previously drafted logbook entry, and "
+                        "(3) specific refinement instructions. "
+                        f"Maintain the {st.session_state.active_tone} tone throughout. "
+                        "Apply ONLY the requested changes. Do not invent new tasks or details "
+                        "not present in the original notes. Return the full refined logbook entry."
+                    )
+
+                    refine_user_message = (
+                        f"ORIGINAL ROUGH NOTES:\n{st.session_state.original_notes}\n\n"
+                        f"CURRENT LOGBOOK DRAFT:\n{st.session_state.current_logbook}\n\n"
+                        f"REFINEMENT INSTRUCTION:\n{refine_instruction.strip()}"
+                    )
+
+                    refine_response = client.messages.create(
+                        model=MODEL,
+                        max_tokens=1024,
+                        system=refine_system,
+                        messages=[{"role": "user", "content": refine_user_message}]
+                    )
+
+                    refined_log = refine_response.content[0].text
+
+                    # Overwrite session state — no token deduction for refinements
+                    st.session_state.current_logbook = refined_log
+
+                    # Update sidebar history: replace last entry with refined version
+                    if st.session_state.messages:
+                        st.session_state.messages[-1] = refined_log
+                    else:
+                        st.session_state.messages.append(refined_log)
+
+                    st.success("Entry refined! No tokens were deducted.")
+                    st.rerun()   # Re-render page so updated logbook displays immediately
+
+                except anthropic.RateLimitError:
+                    st.markdown(
+                        '<div class="error-box">⚠️ Server busy right now. Wait 5 seconds and try again.</div>',
+                        unsafe_allow_html=True,
+                    )
+                except Exception as e:
+                    st.markdown(
+                        f'<div class="error-box">⚠ Refinement error: {e}</div>',
+                        unsafe_allow_html=True,
+                    )
 
 st.markdown('<div style="text-align:center; margin-top:3rem; font-size:0.7rem; color:#6b7280;">POWERED BY CLAUDE HAIKU · CLOUD DATABASE ACTIVE</div>', unsafe_allow_html=True)
 
@@ -156,7 +260,11 @@ with st.sidebar:
     st.header("📜 Session History")
     
     if st.button("Clear History"):
-        st.session_state.messages = []
+        st.session_state.messages        = []
+        st.session_state.current_logbook = None
+        st.session_state.original_notes  = ""
+        st.session_state.active_passcode = ""
+        st.session_state.active_tone     = ""
         st.rerun()
         
     for idx, msg in enumerate(reversed(st.session_state.messages)):
