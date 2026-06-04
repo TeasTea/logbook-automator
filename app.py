@@ -284,10 +284,11 @@ with tab1:
 # ════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.markdown(
-        '<p class="weekly-hint">Paste your 5 daily logbook entries below. '
-        'The AI will synthesize them into a single professional weekly summary — '
-        'no bullet points, just clean paragraphs. Costs 1 token.</p>',
-        unsafe_allow_html=True,
+    '<p class="weekly-hint">Paste your 5 daily logbook entries below. '
+    'The AI will synthesize them into a single professional weekly summary — '
+    'no bullet points, just clean paragraphs. Costs 1 token.<br><br>'
+    '💡 <b>Pro Tip:</b> Type specific instructions at the top of your text like "Keep it brief" or "Focus strictly on the Java backend".</p>',
+    unsafe_allow_html=True
     )
 
     weekly_notes = st.text_area(
